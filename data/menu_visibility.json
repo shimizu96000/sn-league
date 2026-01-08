@@ -1,0 +1,8 @@
+{
+    "home": true,
+    "score_form": true,
+    "view_scores": true,
+    "match_plans": false,
+    "calendar": false,
+    "rules": true
+}

@@ -1,0 +1,75 @@
+{
+    "titles": [
+        {
+            "id": "consecutive_wins",
+            "name": "連勝者",
+            "icon": "🔥",
+            "condition": "max_consecutive_wins >= 3",
+            "description": "3連勝以上達成した選手"
+        },
+        {
+            "id": "strongest",
+            "name": "最強者",
+            "icon": "⭐",
+            "condition": "win_rate >= 80",
+            "description": "一着率80%以上の選手"
+        },
+        {
+            "id": "powerful",
+            "name": "実力者",
+            "icon": "✨",
+            "condition": "win_rate >= 60",
+            "description": "一着率60%以上の選手"
+        },
+        {
+            "id": "renzai_king",
+            "name": "連対の鬼",
+            "icon": "🥇",
+            "condition": "max_consecutive_renzai >= 3",
+            "description": "最大3連続で連対した選手"
+        },
+        {
+            "id": "veteran",
+            "name": "ベテラン",
+            "icon": "🎮",
+            "condition": "total_games >= 10",
+            "description": "10試合以上出場した選手"
+        },
+        {
+            "id": "rising_star",
+            "name": "期待の新星",
+            "icon": "🌟",
+            "condition": "total_games < 5 AND avg_rank < 2.5",
+            "description": "試合数が少ないながら平均順位が2.5以上の選手"
+        }
+    ],
+    "custom_titles": {
+        "6919f0a73bd74": {
+            "id": "6919f0a73bd74",
+            "name": "雑魚乙",
+            "icon": "🤣",
+            "condition": "last_avoidance_rate <= 30",
+            "description": "ラス回避率が30%以下"
+        },
+        "691a09ab71543": {
+            "id": "691a09ab71543",
+            "name": "リスクヘッジ",
+            "icon": "😎",
+            "condition": "last_avoidance_rate >= 90",
+            "description": "ラス回避率90%以上"
+        },
+        "personal_691aad4fbcf95": {
+            "id": "personal_691aad4fbcf95",
+            "name": "ゲイ",
+            "icon": "💢",
+            "condition": "false",
+            "description": "全然公式戦をやってないやつ",
+            "type": "personal"
+        }
+    },
+    "manual_titles": {
+        "ふうま": [
+            "personal_691aad4fbcf95"
+        ]
+    }
+}

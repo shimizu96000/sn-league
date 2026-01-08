@@ -1,0 +1,5 @@
+# player_images ディレクトリへのアクセスを許可
+<FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>

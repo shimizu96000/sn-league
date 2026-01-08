@@ -128,7 +128,8 @@ if (!in_array($player_name, $participants)) {
 }
 
 // 選手の成績を取得（フィルター適用）
-$save_file = __DIR__ . '/data/scores.csv';
+require_once 'db_connect.php';
+
 $player_stats = [
     'games' => [],
     'wins' => 0,
@@ -142,81 +143,103 @@ $player_stats = [
     'last_place_count' => 0
 ];
 
-if (file_exists($save_file)) {
-    $fp = fopen($save_file, 'r');
-    if ($fp !== false) {
-        while (($row = fgetcsv($fp)) !== false) {
-            if (count($row) < 14) continue;
-            
-            $match_type = $row[count($row)-1] ?? '';
-            
-            // フィルター処理
-            if ($match_type_filter === 'official' && $match_type !== 'official') continue;
-            if ($match_type_filter === 'unofficial' && $match_type === 'official') continue;
-            
-            $names_in_game = [
-                trim($row[1] ?? ''),
-                trim($row[4] ?? ''),
-                trim($row[7] ?? ''),
-                trim($row[10] ?? '')
+try {
+    // フィルター条件を作成
+    $where_clause = "WHERE player_name = :player_name";
+    if ($match_type_filter === 'official') {
+        $where_clause .= " AND game_type = 'official'";
+    } elseif ($match_type_filter === 'unofficial') {
+        $where_clause .= " AND game_type = 'unofficial'";
+    }
+    // 'all'の場合は条件なし
+    
+    // 指定したプレイヤーの全ゲーム記録を取得
+    $sql = "SELECT game_date, player_name, score, point, rank, game_type 
+            FROM results 
+            $where_clause
+            ORDER BY game_date ASC";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':player_name' => $player_name]);
+    $player_results = $stmt->fetchAll();
+    
+    // ゲームごとに集約
+    $games_by_date = [];
+    foreach ($player_results as $row) {
+        $date = $row['game_date'];
+        
+        if (!isset($games_by_date[$date])) {
+            $games_by_date[$date] = [
+                'date' => $date,
+                'game_type' => $row['game_type'],
+                'players' => []
+            ];
+        }
+        $games_by_date[$date]['players'][] = $row;
+    }
+    
+    // 各ゲームの詳細を取得して統計計算
+    foreach ($games_by_date as $date => $game_data) {
+        $sql = "SELECT player_name, score, point, rank 
+                FROM results 
+                WHERE game_date = :date 
+                ORDER BY rank";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':date' => $date]);
+        $game_players = $stmt->fetchAll();
+        
+        if (empty($game_players)) continue;
+        
+        // プレイヤーのこのゲームでの成績を処理
+        $names_in_game = array_column($game_players, 'player_name');
+        $scores_in_game = array_map('intval', array_column($game_players, 'score'));
+        $final_scores_in_game = array_map('floatval', array_column($game_players, 'point'));
+        
+        $player_idx = array_search($player_name, $names_in_game);
+        
+        if ($player_idx !== false) {
+            // ゲーム記録を保存
+            $player_stats['games'][] = [
+                'date' => $date,
+                'opponents' => array_diff($names_in_game, [$player_name]),
+                'score' => $scores_in_game[$player_idx],
+                'scores' => $scores_in_game,
+                'names' => $names_in_game,
+                'match_type' => $game_data['game_type']
             ];
             
-            $scores_in_game = [
-                floatval($row[3] ?? 0),
-                floatval($row[6] ?? 0),
-                floatval($row[9] ?? 0),
-                floatval($row[12] ?? 0)
-            ];
+            // 統計を集計
+            $player_stats['final_scores'][] = $final_scores_in_game[$player_idx];
+            $player_stats['score_diffs'][] = $scores_in_game[$player_idx];  // 素点（スコア）
+            $player_stats['total_games']++;
             
-            $final_scores_in_game = [
-                floatval($row[2] ?? 0),
-                floatval($row[5] ?? 0),
-                floatval($row[8] ?? 0),
-                floatval($row[11] ?? 0)
-            ];
+            // データベースのrankをそのまま使用
+            $rank = (int)$game_players[$player_idx]['rank'];
+            $player_stats['placements'][$rank]++;
+            $player_stats['total_rank_sum'] += $rank;
             
-            $player_idx = array_search($player_name, $names_in_game);
+            if ($rank === 1) {
+                $player_stats['wins']++;
+            }
             
-            if ($player_idx !== false) {
-                $player_stats['games'][] = [
-                    'date' => $row[0],
-                    'opponents' => array_diff($names_in_game, [$player_name]),
-                    'score' => $scores_in_game[$player_idx],
-                    'scores' => $scores_in_game,
-                    'names' => $names_in_game,
-                    'match_type' => $match_type
-                ];
-                
-                $player_stats['final_scores'][] = $final_scores_in_game[$player_idx];
-                $player_stats['score_diffs'][] = $scores_in_game[$player_idx];
-                $player_stats['total_games']++;
-                
-                // 順位を計算
-                $rankings = array_keys($scores_in_game);
-                usort($rankings, function($a, $b) use ($scores_in_game) {
-                    return $scores_in_game[$b] <=> $scores_in_game[$a];
-                });
-                $position = array_search($player_idx, $rankings) + 1;
-                $player_stats['placements'][$position]++;
-                $player_stats['total_rank_sum'] += $position;
-                
-                if ($position === 1) {
-                    $player_stats['wins']++;
-                }
-                
-                // 最高点数を更新
-                if ($final_scores_in_game[$player_idx] > $player_stats['best_final_score']) {
-                    $player_stats['best_final_score'] = $final_scores_in_game[$player_idx];
-                }
+            // 最高最終スコアを更新
+            if ($final_scores_in_game[$player_idx] > $player_stats['best_final_score']) {
+                $player_stats['best_final_score'] = $final_scores_in_game[$player_idx];
             }
         }
-        fclose($fp);
     }
+    
+} catch (PDOException $e) {
+    error_log('Database error in player_profile.php: ' . $e->getMessage());
 }
 
 // 統計を計算
-$avg_final_score = !empty($player_stats['final_scores']) 
-    ? round(array_sum($player_stats['final_scores']) / count($player_stats['final_scores']), 0) 
+// 平均素点（スコア）と最高素点を計算
+$avg_final_score = !empty($player_stats['score_diffs']) 
+    ? round(array_sum($player_stats['score_diffs']) / count($player_stats['score_diffs']), 0) 
+    : 0;
+
+$best_final_score = !empty($player_stats['score_diffs'])
+    ? max($player_stats['score_diffs'])
     : 0;
 
 $win_rate = $player_stats['total_games'] > 0 
@@ -225,7 +248,7 @@ $win_rate = $player_stats['total_games'] > 0
 
 // 追加の統計情報を計算
 $total_games = $player_stats['total_games'];
-$total_score = array_sum($player_stats['score_diffs']);
+$total_score = array_sum($player_stats['score_diffs']);  // 最終スコア（ウマ込み）の合計
 $player_stats['total_score'] = $total_score;
 $player_stats['last_place_count'] = $player_stats['placements'][4] ?? 0;
 
@@ -240,8 +263,6 @@ $top_rate = $total_games > 0
 $last_avoidance_rate = $total_games > 0 
     ? round((($total_games - $player_stats['placements'][4]) / $total_games) * 100, 1) 
     : 0;
-
-$best_final_score = $player_stats['best_final_score'];
 
 // 自己紹介とコメントを読み込む
 $intro_file = __DIR__ . '/data/player_intro.json';
@@ -299,40 +320,24 @@ foreach (array_reverse($player_stats['games']) as $game) {
 
 // 公式戦のランキングを計算
 $official_standings = [];
-if (file_exists($save_file)) {
-    $fp = fopen($save_file, 'r');
-    if ($fp !== false) {
-        while (($row = fgetcsv($fp)) !== false) {
-            if (count($row) < 14) continue;
-            $match_type = $row[count($row)-1] ?? '';
-            
-            // 公式戦のみを集計
-            if ($match_type !== 'official') continue;
-            
-            // 4人の選手のスコアとポイントを計算
-            for ($i = 0; $i < 4; $i++) {
-                $player = trim($row[1 + $i * 3]);
-                $score = (int)$row[2 + $i * 3];
-                $diff = (int)$row[3 + $i * 3];
-                
-                if (empty($player)) continue;
-                
-                if (!isset($official_standings[$player])) {
-                    $official_standings[$player] = ['points' => 0, 'games' => 0];
-                }
-                
-                $official_standings[$player]['games']++;
-                $official_standings[$player]['points'] += $diff;
-            }
-        }
-        fclose($fp);
+try {
+    $sql = "SELECT player_name, SUM(point) as total_points, COUNT(*) as games 
+            FROM results 
+            WHERE game_type = 'official' 
+            GROUP BY player_name 
+            ORDER BY total_points DESC";
+    $stmt = $pdo->query($sql);
+    $standings = $stmt->fetchAll();
+    
+    foreach ($standings as $row) {
+        $official_standings[$row['player_name']] = [
+            'points' => (float)$row['total_points'],
+            'games' => (int)$row['games']
+        ];
     }
+} catch (PDOException $e) {
+    error_log('Database error getting official standings: ' . $e->getMessage());
 }
-
-// ポイント順でソート
-uasort($official_standings, function($a, $b) {
-    return $b['points'] <=> $a['points'];
-});
 
 // 現在の選手の順位と情報を取得
 $player_official_rank = 0;

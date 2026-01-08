@@ -72,12 +72,12 @@ usort($final_ordered_players, function($a, $b) {
 });
 
 // ルール設定
+require_once 'db_connect.php';
 $start_point = 25000;
 $return_point = 30000;
 $uma = [50, 10, -10, -30];
 $match_date = $tie_breaker_data['match_date'];
 $match_type = $tie_breaker_data['match_type'];
-$save_file = __DIR__ . '/data/scores.csv';
 
 // 最終順位に基づいたスコア計算
 $results = [];
@@ -94,57 +94,28 @@ foreach ($final_ordered_players as $index => $player) {
     ];
 }
 
-// ファイル書き込み
-$line_to_write = [$match_date];
-foreach ($results as $player) {
-    $line_to_write[] = $player['name'];
-    $line_to_write[] = $player['score'];
-    $line_to_write[] = $player['final_score'];
-}
-$line_to_write[] = $match_type;
+// データベースに記録
+try {
+    $sql = "INSERT INTO results (game_date, player_name, score, point, rank, game_type) 
+            VALUES (:date, :name, :score, :point, :rank, :game_type)";
+    $stmt = $pdo->prepare($sql);
 
-// 安全に追記: 末尾に改行がなければ挿入してから fputcsv で書く
-$fp = fopen($save_file, 'c+');
-if ($fp !== false) {
-    if (flock($fp, LOCK_EX)) {
-        fseek($fp, 0, SEEK_END);
-        $stat = fstat($fp);
-        if ($stat['size'] > 0) {
-            fseek($fp, -1, SEEK_END);
-            $last = fread($fp, 1);
-            if ($last !== "\n" && $last !== "\r") {
-                fwrite($fp, PHP_EOL);
-            }
-        }
-        fputcsv($fp, $line_to_write);
-        fflush($fp);
-        flock($fp, LOCK_UN);
-    } else {
-        $prefix = '';
-        if (file_exists($save_file) && filesize($save_file) > 0) {
-            $fh = fopen($save_file, 'rb');
-            if ($fh) {
-                fseek($fh, -1, SEEK_END);
-                $last = fread($fh, 1);
-                fclose($fh);
-                if ($last !== "\n" && $last !== "\r") $prefix = PHP_EOL;
-            }
-        }
-        file_put_contents($save_file, $prefix . implode(',', $line_to_write), FILE_APPEND | LOCK_EX);
+    foreach ($results as $player) {
+        $stmt->execute([
+            ':date' => $match_date,
+            ':name' => $player['name'],
+            ':score' => $player['score'],
+            ':point' => $player['final_score'],
+            ':rank' => $player['rank'],
+            ':game_type' => $match_type
+        ]);
     }
-    fclose($fp);
-} else {
-    $prefix = '';
-    if (file_exists($save_file) && filesize($save_file) > 0) {
-        $fh = fopen($save_file, 'rb');
-        if ($fh) {
-            fseek($fh, -1, SEEK_END);
-            $last = fread($fh, 1);
-            fclose($fh);
-            if ($last !== "\n" && $last !== "\r") $prefix = PHP_EOL;
-        }
-    }
-    file_put_contents($save_file, $prefix . implode(',', $line_to_write), FILE_APPEND | LOCK_EX);
+
+} catch (PDOException $e) {
+    error_log('Database error in process_tie_breaker.php: ' . $e->getMessage());
+    $_SESSION['error'] = 'スコア保存中にエラーが発生しました: ' . $e->getMessage();
+    header('Location: tie_breaker.php');
+    exit();
 }
 
 // 完了画面にデータを渡してリダイレクト

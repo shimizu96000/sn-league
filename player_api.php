@@ -117,13 +117,8 @@ if ($action === 'delete_comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // 全選手の統計情報を取得（比較用）
 if ($action === 'get_all_stats') {
-    $save_file = __DIR__ . '/data/scores.csv';
+    require_once 'db_connect.php';
     $match_type_filter = $_GET['match_type'] ?? 'all';
-    
-    if (!file_exists($save_file)) {
-        echo json_encode(['success' => false, 'error' => 'スコアファイルが見つかりません'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
     
     // キャッシュされたプレーヤー一覧を取得
     $cache_file = __DIR__ . '/data/cache_players.json';
@@ -160,50 +155,27 @@ if ($action === 'get_all_stats') {
             'max_consecutive_renzai' => 0
         ];
         
-        $fp = fopen($save_file, 'r');
-        if ($fp === false) continue;
-        
-        while (($row = fgetcsv($fp)) !== false) {
-            if (count($row) < 14) continue;
+        try {
+            // データベースからプレイヤーのゲーム記録を取得
+            $sql = "SELECT game_date, score, point, rank, game_type 
+                    FROM results 
+                    WHERE player_name = :player_name 
+                    ORDER BY game_date";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':player_name' => $player_name]);
+            $player_games = $stmt->fetchAll();
             
-            $match_type = $row[count($row)-1] ?? '';
-            
-            if ($match_type_filter === 'official' && $match_type !== 'official') continue;
-            if ($match_type_filter === 'unofficial' && $match_type === 'official') continue;
-            
-            $names_in_game = [
-                trim($row[1] ?? ''),
-                trim($row[4] ?? ''),
-                trim($row[7] ?? ''),
-                trim($row[10] ?? '')
-            ];
-            
-            $scores_in_game = [
-                floatval($row[3] ?? 0),
-                floatval($row[6] ?? 0),
-                floatval($row[9] ?? 0),
-                floatval($row[12] ?? 0)
-            ];
-            
-            $final_scores_in_game = [
-                floatval($row[2] ?? 0),
-                floatval($row[5] ?? 0),
-                floatval($row[8] ?? 0),
-                floatval($row[11] ?? 0)
-            ];
-            
-            $player_idx = array_search($player_name, $names_in_game);
-            
-            if ($player_idx !== false) {
-                $stats['final_scores'][] = $final_scores_in_game[$player_idx];
-                $stats['score_diffs'][] = $scores_in_game[$player_idx];
+            foreach ($player_games as $game) {
+                $game_type = $game['game_type'];
+                
+                if ($match_type_filter === 'official' && $game_type !== 'official') continue;
+                if ($match_type_filter === 'unofficial' && $game_type === 'official') continue;
+                
+                $stats['final_scores'][] = (float)$game['point'];
+                $stats['score_diffs'][] = (int)$game['score'];
                 $stats['total_games']++;
                 
-                $rankings = array_keys($scores_in_game);
-                usort($rankings, function($a, $b) use ($scores_in_game) {
-                    return $scores_in_game[$b] <=> $scores_in_game[$a];
-                });
-                $position = array_search($player_idx, $rankings) + 1;
+                $position = (int)$game['rank'];
                 $stats['placements'][$position]++;
                 $stats['total_rank_sum'] += $position;
                 
@@ -211,61 +183,41 @@ if ($action === 'get_all_stats') {
                     $stats['wins']++;
                 }
                 
-                if ($final_scores_in_game[$player_idx] > $stats['best_final_score']) {
-                    $stats['best_final_score'] = $final_scores_in_game[$player_idx];
+                if ((float)$game['point'] > $stats['best_final_score']) {
+                    $stats['best_final_score'] = (float)$game['point'];
                 }
             }
+        } catch (PDOException $e) {
+            error_log('Database error in player_api.php: ' . $e->getMessage());
+            continue;
         }
-        fclose($fp);
         
-        // 最大連対数を計算
+        // 連対数を計算（ランク1と2の連続性）
         $max_renzai = 0;
         $current_renzai = 0;
         if ($stats['total_games'] > 0) {
-            $fp = fopen($save_file, 'r');
-            if ($fp !== false) {
-                $temp_games = [];
-                while (($row = fgetcsv($fp)) !== false) {
-                    if (count($row) < 14) continue;
-                    
-                    $match_type = $row[count($row)-1] ?? '';
-                    if ($match_type_filter === 'official' && $match_type !== 'official') continue;
-                    if ($match_type_filter === 'unofficial' && $match_type === 'official') continue;
-                    
-                    $names_in_game = [
-                        trim($row[1] ?? ''),
-                        trim($row[4] ?? ''),
-                        trim($row[7] ?? ''),
-                        trim($row[10] ?? '')
-                    ];
-                    
-                    $scores_in_game = [
-                        floatval($row[3] ?? 0),
-                        floatval($row[6] ?? 0),
-                        floatval($row[9] ?? 0),
-                        floatval($row[12] ?? 0)
-                    ];
-                    
-                    $player_idx = array_search($player_name, $names_in_game);
-                    if ($player_idx !== false) {
-                        $rankings = array_keys($scores_in_game);
-                        usort($rankings, function($a, $b) use ($scores_in_game) {
-                            return $scores_in_game[$b] <=> $scores_in_game[$a];
-                        });
-                        $position = array_search($player_idx, $rankings) + 1;
-                        $temp_games[] = $position;
-                    }
-                }
-                fclose($fp);
+            // ゲーム順序を時系列で取得
+            try {
+                $sql_renzai = "SELECT rank 
+                              FROM results 
+                              WHERE player_name = :player_name 
+                              AND game_type " . ($match_type_filter === 'official' ? "= 'official'" : "IN ('official', 'unofficial')") . "
+                              ORDER BY game_date ASC";
+                $stmt_renzai = $pdo->prepare($sql_renzai);
+                $stmt_renzai->execute([':player_name' => $player_name]);
+                $renzai_games = $stmt_renzai->fetchAll();
                 
-                foreach (array_reverse($temp_games) as $position) {
-                    if ($position === 1 || $position === 2) {
+                foreach (array_reverse($renzai_games) as $game) {
+                    $pos = (int)$game['rank'];
+                    if ($pos === 1 || $pos === 2) {
                         $current_renzai++;
                         $max_renzai = max($max_renzai, $current_renzai);
                     } else {
                         $current_renzai = 0;
                     }
                 }
+            } catch (PDOException $e) {
+                error_log('Error calculating renzai: ' . $e->getMessage());
             }
         }
         $stats['max_consecutive_renzai'] = $max_renzai;

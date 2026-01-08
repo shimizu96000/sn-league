@@ -3,12 +3,12 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once 'includes/init.php';
+require_once 'db_connect.php';
 
 // --- ルール設定 ---
 $start_point = 25000;
 $return_point = 30000;
 $uma = [50, 10, -10, -30];
-$save_file = __DIR__ . '/data/scores.csv';
 
 // --- プログラム処理 ---
 
@@ -34,37 +34,15 @@ foreach ($score_counts as $count) {
     }
 }
 
-// 共通の試合情報
-$match_date = date("Y-m-d H:i:s");
-$current_player_names = array_column($players, 'name');
-sort($current_player_names);
-$current_combination_id = implode('-', $current_player_names);
-
-$is_official = true;
-if (file_exists($save_file)) {
-    $fp_read = fopen($save_file, 'r');
-    while ($line_read = fgetcsv($fp_read)) {
-        if (isset($line_read[13]) && $line_read[13] === 'official') {
-            $past_player_names = [$line_read[1], $line_read[4], $line_read[7], $line_read[10]];
-            sort($past_player_names);
-            $past_combination_id = implode('-', $past_player_names);
-            if ($current_combination_id === $past_combination_id) {
-                $is_official = false;
-                break;
-            }
-        }
-    }
-    fclose($fp_read);
-}
-$match_type = $is_official ? 'official' : 'unofficial';
-
-
 // 同点者がいれば、tie_breaker.phpへリダイレクト
 if ($has_tie) {
+    $current_player_names = array_column($players, 'name');
+    sort($current_player_names);
+    $current_combination_id = implode('-', $current_player_names);
+    
     $_SESSION['tie_breaker_data'] = [
-        'players' => $players, // 点数でソート済みのプレイヤーデータ
-        'match_date' => $match_date,
-        'match_type' => $match_type
+        'players' => $players,
+        'combination_id' => $current_combination_id
     ];
     header('Location: tie_breaker.php');
     exit();
@@ -73,7 +51,7 @@ if ($has_tie) {
 // 同点者がいない場合の処理
 $results = [];
 foreach ($players as $index => $player) {
-    $actual_score = $player['score'] * 100;
+    $actual_score = $player['score'] * 100;  // 入力値を100倍（364 -> 36400）
     $raw_score_adj = ($actual_score - $return_point) / 1000;
     $final_score = $raw_score_adj + $uma[$index];
     
@@ -85,61 +63,57 @@ foreach ($players as $index => $player) {
     ];
 }
 
-// ファイル書き込み
-$line_to_write = [$match_date];
-foreach ($results as $player) {
-    $line_to_write[] = $player['name'];
-    $line_to_write[] = $player['score'];
-    $line_to_write[] = $player['final_score'];
+// 公式戦判定：同じプレイヤー組み合わせが過去にあるか確認
+$is_official = true;
+$current_player_names = array_column($players, 'name');
+sort($current_player_names);
+$current_combination_id = implode('-', $current_player_names);
+
+try {
+    $sql = "SELECT DISTINCT player_name FROM results 
+            WHERE player_name IN (?, ?, ?, ?) 
+            GROUP BY game_date 
+            HAVING COUNT(DISTINCT player_name) = 4
+            LIMIT 1";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($current_player_names);
+    
+    if ($stmt->rowCount() > 0) {
+        // 同じ組み合わせが過去に存在する場合は非公式
+        $is_official = false;
+    }
+} catch (PDOException $e) {
+    error_log('Database error checking official status: ' . $e->getMessage());
+    // エラー時は非公式扱い（保守的）
+    $is_official = false;
 }
-$line_to_write[] = $match_type;
-// 安全に追記: 末尾に改行がなければ挿入してから fputcsv で書く
-$fp = fopen($save_file, 'c+'); // c+ allows read/write without truncation
-if ($fp !== false) {
-    if (flock($fp, LOCK_EX)) {
-        // move to end
-        fseek($fp, 0, SEEK_END);
-        $stat = fstat($fp);
-        if ($stat['size'] > 0) {
-            // check last byte
-            fseek($fp, -1, SEEK_END);
-            $last = fread($fp, 1);
-            if ($last !== "\n" && $last !== "\r") {
-                fwrite($fp, PHP_EOL);
-            }
-        }
-        // write CSV line
-        fputcsv($fp, $line_to_write);
-        fflush($fp);
-        flock($fp, LOCK_UN);
-    } else {
-        // ロック失敗時フォールバック: ファイル末尾を確認して改行を付けてから追記
-        $prefix = '';
-        if (file_exists($save_file) && filesize($save_file) > 0) {
-            $fh = fopen($save_file, 'rb');
-            if ($fh) {
-                fseek($fh, -1, SEEK_END);
-                $last = fread($fh, 1);
-                fclose($fh);
-                if ($last !== "\n" && $last !== "\r") $prefix = PHP_EOL;
-            }
-        }
-        file_put_contents($save_file, $prefix . implode(',', $line_to_write), FILE_APPEND | LOCK_EX);
+
+// --- データベースへの保存処理 ---
+try {
+    $sql = "INSERT INTO results (game_date, player_name, score, point, rank, game_type) 
+            VALUES (:date, :name, :score, :point, :rank, :game_type)";
+    $stmt = $pdo->prepare($sql);
+
+    // 現在時刻
+    $now = date('Y-m-d H:i:s');
+
+    // 4人分繰り返して保存
+    foreach ($results as $player) {
+        $stmt->execute([
+            ':date' => $now,
+            ':name' => $player['name'],
+            ':score' => $player['score'],
+            ':point' => $player['final_score'],
+            ':rank' => $player['rank'],
+            ':game_type' => $is_official ? 'official' : 'unofficial'
+        ]);
     }
-    fclose($fp);
-} else {
-    // fopen 失敗時のフォールバック
-    $prefix = '';
-    if (file_exists($save_file) && filesize($save_file) > 0) {
-        $fh = fopen($save_file, 'rb');
-        if ($fh) {
-            fseek($fh, -1, SEEK_END);
-            $last = fread($fh, 1);
-            fclose($fh);
-            if ($last !== "\n" && $last !== "\r") $prefix = PHP_EOL;
-        }
-    }
-    file_put_contents($save_file, $prefix . implode(',', $line_to_write), FILE_APPEND | LOCK_EX);
+
+} catch (PDOException $e) {
+    error_log('Database error saving score: ' . $e->getMessage());
+    $_SESSION['error'] = 'スコア保存中にエラーが発生しました: ' . $e->getMessage();
+    header('Location: score_form.php');
+    exit();
 }
 
 // 完了画面にデータを渡してリダイレクト

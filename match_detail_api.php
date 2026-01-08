@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/init.php';
+require_once 'db_connect.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -20,42 +21,39 @@ if ($action === 'get_match') {
         exit;
     }
     
-    $score_file = __DIR__ . '/data/scores.csv';
-    $match_data = null;
-    
-    if (file_exists($score_file)) {
-        $fp = fopen($score_file, 'r');
-        while ($line = fgetcsv($fp)) {
-            if ($line[0] === $match_date) {
-                $match_type = $line[13] ?? 'unknown';
-                $match_data = [
-                    'date' => $line[0],
-                    'type' => $match_type,
-                    'players' => []
-                ];
-                
-                for ($i = 0; $i < 4; $i++) {
-                    $name = $line[$i * 3 + 1];
-                    $score = (int)$line[$i * 3 + 2];
-                    $final_score = (float)$line[$i * 3 + 3];
-                    $rank = $i + 1;
-                    
-                    $match_data['players'][] = [
-                        'name' => $name,
-                        'score' => $score,
-                        'final_score' => $final_score,
-                        'rank' => $rank
-                    ];
-                }
-                break;
-            }
+    try {
+        $sql = "SELECT player_name, score, point, rank, game_type 
+                FROM results 
+                WHERE game_date = :date 
+                ORDER BY rank";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':date' => $match_date]);
+        $players = $stmt->fetchAll();
+        
+        if (empty($players)) {
+            http_response_code(404);
+            echo json_encode(['error' => '試合が見つかりません']);
+            exit;
         }
-        fclose($fp);
-    }
-    
-    if (!$match_data) {
-        http_response_code(404);
-        echo json_encode(['error' => '試合が見つかりません']);
+        
+        $match_data = [
+            'date' => $match_date,
+            'type' => $players[0]['game_type'],
+            'players' => []
+        ];
+        
+        foreach ($players as $player) {
+            $match_data['players'][] = [
+                'name' => $player['player_name'],
+                'score' => (int)$player['score'],
+                'final_score' => (float)$player['point'],
+                'rank' => (int)$player['rank']
+            ];
+        }
+        
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'データベースエラー: ' . $e->getMessage()]);
         exit;
     }
     

@@ -1,61 +1,109 @@
 <?php
 require_once 'includes/init.php';
+require_once 'db_connect.php';
 $page_title = '成績閲覧';
 $current_page = basename(__FILE__);
 
-$score_file = __DIR__ . '/data/scores.csv';
-$score_file = __DIR__ . '/data/scores.csv';
-// manual refresh to ensure the latest file contents are used
-if (isset($_GET['refresh']) && $_GET['refresh'] == '1') {
-    clearstatcache(true, $score_file);
-    if (function_exists('opcache_invalidate')) opcache_invalidate($score_file, true);
-    header('Location: view_scores.php?refreshed=1'); exit;
-}
-clearstatcache(true);
-if (function_exists('opcache_invalidate')) {
-    opcache_invalidate($score_file, true);
-}
 $players = [];
 $game_history = [];
 $total_point_sum = 0.0;
 $filter = isset($_GET['filter']) && $_GET['filter'] === 'all' ? 'all' : 'official';
 
-if (file_exists($score_file)) {
-    $fp = fopen($score_file, 'r');
-    while ($line = fgetcsv($fp)) {
-        $match_type = $line[13] ?? 'unknown';
+try {
+    // ゲーム履歴を取得
+    $sql = "SELECT game_date, player_name, score, point, rank, game_type 
+            FROM results 
+            ORDER BY game_date DESC";
+    $stmt = $pdo->query($sql);
+    $all_results = $stmt->fetchAll();
+    
+    // ゲームごとに集約
+    $games_by_date = [];
+    foreach ($all_results as $row) {
+        $date = $row['game_date'];
+        if (!isset($games_by_date[$date])) {
+            $games_by_date[$date] = [
+                'date' => $date,
+                'type' => $row['game_type'],
+                'players' => []
+            ];
+        }
+        $games_by_date[$date]['players'][] = $row;
+    }
+    
+    // フィルター適用
+    foreach ($games_by_date as $game_data) {
+        $match_type = $game_data['type'];
         $should_include_in_ranking = ($filter === 'all' || $match_type === 'official');
-        $game_data = ['date' => $line[0], 'type' => $match_type, 'players' => []];
-        for ($i = 0; $i < 4; $i++) {
-            $name = $line[$i * 3 + 1];
-            $score = (int)$line[$i * 3 + 2];
-            $final_score = (float)$line[$i * 3 + 3];
-            $rank = $i + 1;
-            if ($should_include_in_ranking) {
+        
+        if ($should_include_in_ranking) {
+            // プレイヤーデータを処理
+            foreach ($game_data['players'] as $player_data) {
+                $name = $player_data['player_name'];
+                $score = (int)$player_data['score'];
+                $final_score = (float)$player_data['point'];
+                $rank = (int)$player_data['rank'];
+                
                 $total_point_sum += $final_score;
+                
                 if (!isset($players[$name])) {
-                    $players[$name] = ['games' => 0, 'points' => 0.0, 'total_rank' => 0, 'ranks' => [0, 0, 0, 0], 'best_score' => PHP_INT_MIN];
+                    $players[$name] = [
+                        'games' => 0,
+                        'points' => 0.0,
+                        'total_rank' => 0,
+                        'ranks' => [0, 0, 0, 0],
+                        'best_score' => PHP_INT_MIN
+                    ];
                 }
+                
                 $players[$name]['games']++;
                 $players[$name]['points'] += $final_score;
                 $players[$name]['total_rank'] += $rank;
-                $players[$name]['ranks'][$i]++;
+                $players[$name]['ranks'][$rank - 1]++;
+                
                 if ($score > $players[$name]['best_score']) {
                     $players[$name]['best_score'] = $score;
                 }
             }
-            $game_data['players'][] = ['name' => $name, 'score' => $score, 'final_score' => $final_score, 'rank' => $rank];
+            
+            // プレイヤーを順位でソート
+            $sorted_players = $game_data['players'];
+            usort($sorted_players, function($a, $b) {
+                return (int)$a['rank'] <=> (int)$b['rank'];
+            });
+            
+            // テンプレート用にデータ構造を変換
+            $game_for_display = [
+                'date' => $game_data['date'],
+                'type' => $game_data['type'],
+                'players' => []
+            ];
+            
+            foreach ($sorted_players as $player) {
+                $game_for_display['players'][] = [
+                    'name' => $player['player_name'],
+                    'score' => (int)$player['score'],
+                    'final_score' => (float)$player['point'],
+                    'rank' => (int)$player['rank']
+                ];
+            }
+            
+            $game_history[] = $game_for_display;
         }
-        $game_history[] = $game_data;
     }
-    fclose($fp);
-    if (!empty($players)) {
-        uasort($players, function($a, $b) {
-            return $b['points'] <=> $a['points'];
-        });
-    }
-    rsort($game_history);
+    
+} catch (PDOException $e) {
+    error_log('Database error in view_scores.php: ' . $e->getMessage());
+    $error_message = 'データベースから成績を取得できませんでした';
 }
+
+// ソート処理
+if (!empty($players)) {
+    uasort($players, function($a, $b) {
+        return $b['points'] <=> $a['points'];
+    });
+}
+rsort($game_history);
 
 include 'includes/header.php';
 ?>

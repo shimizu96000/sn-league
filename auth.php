@@ -2,7 +2,7 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-$admin_password = 'league_sasunao_1000_2000'; 
+$admin_password = 'admin1234'; 
 $input_password = $_POST['password'] ?? '';
 
 if ($input_password === $admin_password) {

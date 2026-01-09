@@ -37,41 +37,41 @@ function menu_visible($key, $menu_visibility) {
     return (bool)$menu_visibility[$key];
 }
 ?>
-            <?php if (menu_visible('home', $menu_visibility)): ?><a href="home" class="nav-item <?php if ($current_page === 'home.php') echo 'active'; ?>">ホーム</a><?php endif; ?>
+            <?php if (menu_visible('home', $menu_visibility)): ?><a href="home.php" class="nav-item <?php if ($current_page === 'home.php') echo 'active'; ?>">ホーム</a><?php endif; ?>
             <div class="nav-item has-dropdown <?php if (in_array($current_page, ['score_form.php', 'view_scores.php', 'players_list.php'])) echo 'active'; ?>">
                 成績
                 <div class="dropdown-menu">
                     <?php if (menu_visible('score_form', $menu_visibility)): ?>
-                        <a href="score_form" class="dropdown-item <?php if ($current_page === 'score_form.php') echo 'active'; ?>">成績入力</a>
+                        <a href="score_form.php" class="dropdown-item <?php if ($current_page === 'score_form.php') echo 'active'; ?>">成績入力</a>
                     <?php endif; ?>
                     <?php if (menu_visible('view_scores', $menu_visibility)): ?>
-                        <a href="view_scores" class="dropdown-item <?php if ($current_page === 'view_scores.php') echo 'active'; ?>">成績閲覧</a>
+                        <a href="view_scores.php" class="dropdown-item <?php if ($current_page === 'view_scores.php') echo 'active'; ?>">成績閲覧</a>
                     <?php endif; ?>
-                    <a href="players_list" class="dropdown-item <?php if ($current_page === 'players_list.php') echo 'active'; ?>">選手一覧</a>
+                    <a href="players_list.php" class="dropdown-item <?php if ($current_page === 'players_list.php') echo 'active'; ?>">選手一覧</a>
                 </div>
             </div>
-            <?php if (menu_visible('match_plans', $menu_visibility)): ?><a href="match_plans" class="nav-item <?php if ($current_page === 'match_plans.php') echo 'active'; ?>">試合計画</a><?php endif; ?>
-            <?php if (menu_visible('calendar', $menu_visibility)): ?><a href="calendar" class="nav-item <?php if ($current_page === 'calendar.php') echo 'active'; ?>">カレンダー</a><?php endif; ?>
+            <?php if (menu_visible('match_plans', $menu_visibility)): ?><a href="match_plans.php" class="nav-item <?php if ($current_page === 'match_plans.php') echo 'active'; ?>">試合計画</a><?php endif; ?>
+            <?php if (menu_visible('calendar', $menu_visibility)): ?><a href="calendar.php" class="nav-item <?php if ($current_page === 'calendar.php') echo 'active'; ?>">カレンダー</a><?php endif; ?>
             <?php if (menu_visible('rules', $menu_visibility)): ?>
             <div class="nav-item has-dropdown <?php if ($current_page === 'rules.php') echo 'active'; ?>">
                 ルール
                 <div class="dropdown-menu">
-                    <a href="rules?type=match" class="dropdown-item <?php if ($current_page === 'rules.php' && $_GET['type'] === 'match') echo 'active'; ?>">試合ルール</a>
-                    <a href="rules?type=league" class="dropdown-item <?php if ($current_page === 'rules.php' && $_GET['type'] === 'league') echo 'active'; ?>">リーグルール</a>
+                    <a href="rules.php?type=match" class="dropdown-item <?php if ($current_page === 'rules.php' && $_GET['type'] === 'match') echo 'active'; ?>">試合ルール</a>
+                    <a href="rules.php?type=league" class="dropdown-item <?php if ($current_page === 'rules.php' && $_GET['type'] === 'league') echo 'active'; ?>">リーグルール</a>
                 </div>
             </div>
             <?php endif; ?>
             <div class="nav-item has-dropdown <?php if (in_array($current_page, ['random_seats.php', 'mahjong_quiz.php', 'submit_tips.php', 'unplayed_combinations.php'])) echo 'active'; ?>">
                 各種ツール
                 <div class="dropdown-menu">
-                    <a href="random_seats" class="dropdown-item <?php if ($current_page === 'random_seats.php') echo 'active'; ?>">席順生成</a>
-                    <a href="mahjong_quiz" class="dropdown-item <?php if ($current_page === 'mahjong_quiz.php') echo 'active'; ?>">麻雀クイズ</a>
-                    <a href="submit_tips" class="dropdown-item <?php if ($current_page === 'submit_tips.php') echo 'active'; ?>">TIPS投稿</a>
-                    <a href="unplayed_combinations" class="dropdown-item <?php if ($current_page === 'unplayed_combinations.php') echo 'active'; ?>">未対戦の組み合わせ</a>
+                    <a href="random_seats.php" class="dropdown-item <?php if ($current_page === 'random_seats.php') echo 'active'; ?>">席順生成</a>
+                    <a href="mahjong_quiz.php" class="dropdown-item <?php if ($current_page === 'mahjong_quiz.php') echo 'active'; ?>">麻雀クイズ</a>
+                    <a href="submit_tips.php" class="dropdown-item <?php if ($current_page === 'submit_tips.php') echo 'active'; ?>">TIPS投稿</a>
+                    <a href="unplayed_combinations.php" class="dropdown-item <?php if ($current_page === 'unplayed_combinations.php') echo 'active'; ?>">未対戦の組み合わせ</a>
                 </div>
             </div>
             <?php if (menu_visible('management', $menu_visibility)): ?>
-                <a href="management" class="nav-item <?php if ($current_page === 'management.php') echo 'active'; ?>">運営・協賛</a>
+                <a href="management.php" class="nav-item <?php if ($current_page === 'management.php') echo 'active'; ?>">運営・協賛</a>
             <?php endif; ?>
             <a href="#" onclick="return showCalcConfirmDialog();" class="nav-item">点数計算</a>
             
@@ -85,7 +85,7 @@ function menu_visible($key, $menu_visibility) {
                 ?>
                 <span style="font-size:0.9em;">📌 <?php echo htmlspecialchars($username); ?> (<?php echo $role_label; ?>)</span>
                 <div class="dropdown-menu" style="right:0; left:auto;">
-                    <a href="logout" class="dropdown-item">ログアウト</a>
+                    <a href="logout.php" class="dropdown-item">ログアウト</a>
                 </div>
             </div>
         </nav>

@@ -1,9 +1,20 @@
 <?php
 // データベース接続設定
-$host = 'localhost';
+// ラズパイの場合は /var/run/mysqld/mysqld.sock、XAMPP の場合は localhost を使用
+$socket_path = '/var/run/mysqld/mysqld.sock';
+
+// ローカル XAMPP の場合か、ラズパイの場合かで接続方法を判定
+if (file_exists($socket_path)) {
+    // ラズパイ本番環境（Unix socket が存在）
+    $host = 'localhost:/var/run/mysqld/mysqld.sock';
+} else {
+    // XAMPP ローカル環境（Unix socket が存在しない）
+    $host = 'localhost';
+}
+
 $dbname = 'mahjong_db';
-$username = 'root'; // XAMPPの初期ユーザー
-$password = '';     // XAMPPの初期パスワードは空
+$username = 'root';
+$password = '';
 
 try {
     // データベースに接続

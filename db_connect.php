@@ -9,16 +9,18 @@ if (strpos($file_path, 'xampp') !== false) {
     // XAMPP ローカル環境
     $username = 'root';
     $password = '';
+    $host = 'localhost';
 } else {
     // ラズパイ本番環境（Cloudflare トンネル経由も含む）
     $username = 'sn_league';
     $password = 'sn_league_pass_123';
+    $host = 'localhost';  // ホスト名で接続
 }
 
 try {
     // TCP で接続
     $pdo = new PDO(
-        "mysql:host=127.0.0.1;port=3306;dbname=$dbname;charset=utf8mb4",
+        "mysql:host=$host;port=3306;dbname=$dbname;charset=utf8mb4",
         $username,
         $password,
         [

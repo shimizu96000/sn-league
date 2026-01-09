@@ -2,18 +2,17 @@
 // データベース接続設定
 $dbname = 'mahjong_db';
 
-// 環境判定：ラズパイか XAMPP か
-$is_raspi = file_exists('/etc/os-release');
-$is_xampp = strpos(__FILE__, 'xampp') !== false || getenv('XAMPP_HOME');
-
-if ($is_raspi && !$is_xampp) {
-    // ラズパイ本番環境
-    $username = 'sn_league';
-    $password = 'sn_league_pass_123';
-} else {
+// ラズパイの場合は sn_league、XAMPP の場合は root で接続
+// ファイルパスでより確実に判定
+$file_path = realpath(__FILE__);
+if (strpos($file_path, 'xampp') !== false) {
     // XAMPP ローカル環境
     $username = 'root';
     $password = '';
+} else {
+    // ラズパイ本番環境（Cloudflare トンネル経由も含む）
+    $username = 'sn_league';
+    $password = 'sn_league_pass_123';
 }
 
 try {

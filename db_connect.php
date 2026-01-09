@@ -1,25 +1,24 @@
 <?php
 // データベース接続設定
-// ラズパイの場合は /var/run/mysqld/mysqld.sock、XAMPP の場合は localhost を使用
-$socket_path = '/var/run/mysqld/mysqld.sock';
+$dbname = 'mahjong_db';
 
-// ローカル XAMPP の場合か、ラズパイの場合かで接続方法を判定
-if (file_exists($socket_path)) {
-    // ラズパイ本番環境（Unix socket が存在）
-    $host = 'localhost:/var/run/mysqld/mysqld.sock';
+// 環境判定：ラズパイか XAMPP か
+$is_raspi = file_exists('/etc/os-release') && strpos(file_get_contents('/etc/os-release'), 'Raspberry') !== false;
+
+if ($is_raspi || (defined('PHP_OS_FAMILY') && PHP_OS_FAMILY === 'Linux' && php_uname('s') === 'Linux')) {
+    // ラズパイ本番環境
+    $username = 'sn_league';
+    $password = 'sn_league_pass_123';
 } else {
-    // XAMPP ローカル環境（Unix socket が存在しない）
-    $host = 'localhost';
+    // XAMPP ローカル環境
+    $username = 'root';
+    $password = '';
 }
 
-$dbname = 'mahjong_db';
-$username = 'root';
-$password = '';
-
 try {
-    // データベースに接続
+    // データベースに接続（TCP ポート接続）
     $pdo = new PDO(
-        "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
+        "mysql:host=127.0.0.1;port=3306;dbname=$dbname;charset=utf8mb4",
         $username,
         $password,
         [

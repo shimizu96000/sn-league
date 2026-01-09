@@ -14,7 +14,7 @@ if (strpos($file_path, 'xampp') !== false) {
     // ラズパイ本番環境（Cloudflare トンネル経由も含む）
     $username = 'sn_league';
     $password = 'sn_league_pass_123';
-    $host = '192.168.0.158';  // ラズパイの実IP で接続
+    $host = '127.0.0.1';  // 127.0.0.1 で接続
 }
 
 try {

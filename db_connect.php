@@ -1,32 +1,37 @@
 <?php
 // データベース接続設定
 $dbname = 'mahjong_db';
-
-// 環境判定：ラズパイか XAMPP か
-$is_raspi = file_exists('/etc/os-release') && strpos(file_get_contents('/etc/os-release'), 'Raspberry') !== false;
-
-if ($is_raspi || (defined('PHP_OS_FAMILY') && PHP_OS_FAMILY === 'Linux' && php_uname('s') === 'Linux')) {
-    // ラズパイ本番環境
-    $username = 'sn_league';
-    $password = 'sn_league_pass_123';
-} else {
-    // XAMPP ローカル環境
-    $username = 'root';
-    $password = '';
-}
+$username = 'sn_league';
+$password = 'sn_league_pass_123';
 
 try {
-    // データベースに接続（TCP ポート接続）
-    $pdo = new PDO(
-        "mysql:host=127.0.0.1;port=3306;dbname=$dbname;charset=utf8mb4",
-        $username,
-        $password,
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, // エラー時に例外を出す
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, // 配列としてデータを取得
-            PDO::ATTR_EMULATE_PREPARES => false, // セキュリティ対策（静的プレースホルダ）
-        ]
-    );
+    // Unix socket で接続（ラズパイ優先）
+    $socket_path = '/var/run/mysqld/mysqld.sock';
+    if (file_exists($socket_path)) {
+        // ラズパイ：Unix socket で接続
+        $pdo = new PDO(
+            "mysql:unix_socket=$socket_path;dbname=$dbname;charset=utf8mb4",
+            $username,
+            $password,
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]
+        );
+    } else {
+        // XAMPP ローカル環境：TCP で接続
+        $pdo = new PDO(
+            "mysql:host=localhost;dbname=$dbname;charset=utf8mb4",
+            'root',
+            '',
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]
+        );
+    }
 } catch (PDOException $e) {
     // 接続失敗した場合
     header('Content-Type: text/plain; charset=UTF-8');

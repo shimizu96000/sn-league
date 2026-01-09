@@ -3,11 +3,8 @@
 // 管理画面（メンテナンスとメニュー公開設定）
 require_once 'includes/init.php';
 
-// 管理権限が無ければログインへ
-if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
-    header('Location: login.php');
-    exit();
-}
+// 管理者権限が無ければログインへ
+check_permission('manage_system');
 
 $page_title = '管理画面';
 $current_page = basename(__FILE__);

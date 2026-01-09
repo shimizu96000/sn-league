@@ -2,7 +2,5 @@
 dashboard/
 xampp/
 includes/auth.php
-
-# 【重要】セキュリティ対策（将来のために）
-# データファイルや設定ファイルをGitに上げないようにする設定
-# scores.csv
+data/user_passwords.json
+scores.csv

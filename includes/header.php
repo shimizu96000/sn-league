@@ -74,6 +74,20 @@ function menu_visible($key, $menu_visibility) {
                 <a href="management" class="nav-item <?php if ($current_page === 'management.php') echo 'active'; ?>">運営・協賛</a>
             <?php endif; ?>
             <a href="#" onclick="return showCalcConfirmDialog();" class="nav-item">点数計算</a>
+            
+            <!-- ログイン情報 -->
+            <div class="nav-item has-dropdown" style="margin-left:auto;">
+                <?php 
+                $username = get_username();
+                $role = get_user_role();
+                $role_labels = ['guest' => '観戦者', 'player' => '選手', 'admin' => '管理者'];
+                $role_label = $role_labels[$role] ?? '不明';
+                ?>
+                <span style="font-size:0.9em;">📌 <?php echo htmlspecialchars($username); ?> (<?php echo $role_label; ?>)</span>
+                <div class="dropdown-menu" style="right:0; left:auto;">
+                    <a href="logout" class="dropdown-item">ログアウト</a>
+                </div>
+            </div>
         </nav>
 
         <main class="main-content">

@@ -3,6 +3,9 @@ require_once 'includes/init.php';
 $page_title = 'ホーム';
 $current_page = basename(__FILE__);
 
+// ログイン確認
+is_user_logged_in();
+
 $csv_url = "https://docs.google.com/spreadsheets/d/1E0RvLCAXcMj6L0UwmAWKmHJ-zXZQDHPCpx0L-rPyL6o/export?format=csv&gid=0";
 
 function curl_get_contents($url) {

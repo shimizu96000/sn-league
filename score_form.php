@@ -3,6 +3,9 @@ $page_title = '成績入力';
 $current_page = basename(__FILE__);
 require_once 'includes/init.php';
 
+// 権限チェック：成績入力は選手のみ
+check_permission('submit_scores');
+
 // デバッグ情報を表示する関数
 function debug_log($message) {
     error_log($message);

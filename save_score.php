@@ -5,6 +5,9 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once 'includes/init.php';
 require_once 'db_connect.php';
 
+// 権限チェック：成績入力は選手のみ
+check_permission('submit_scores');
+
 // --- ルール設定 ---
 $start_point = 25000;
 $return_point = 30000;

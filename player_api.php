@@ -3,6 +3,11 @@
 
 header('Content-Type: application/json; charset=utf-8');
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+require_once 'includes/init.php';
+
 $action = $_GET['action'] ?? '';
 $player_name = isset($_GET['name']) ? htmlspecialchars(urldecode($_GET['name']), ENT_QUOTES, 'UTF-8') : '';
 
@@ -23,6 +28,13 @@ if ($action === 'get_intro') {
 
 // 自己紹介を更新（POST）
 if ($action === 'update_intro' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    // 権限チェック：選手のみ
+    if (!check_permission('edit_profile', false)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'アクセス権限がありません'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
     $intro = isset($_POST['intro']) ? htmlspecialchars($_POST['intro'], ENT_QUOTES, 'UTF-8') : '';
     $goal = isset($_POST['goal']) ? htmlspecialchars($_POST['goal'], ENT_QUOTES, 'UTF-8') : '';
     
@@ -91,6 +103,13 @@ if ($action === 'add_comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // コメントを削除（POST）
 if ($action === 'delete_comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    // 権限チェック：選手のみ
+    if (!check_permission('edit_profile', false)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'アクセス権限がありません'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
     $comment_id = isset($_POST['id']) ? $_POST['id'] : '';
     
     $comments_data = [];

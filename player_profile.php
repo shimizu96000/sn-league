@@ -33,6 +33,9 @@ if (file_exists($player_images_file)) {
 // 画像アップロード処理
 $upload_message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['player_image'])) {
+    // 権限チェック：選手のみ
+    check_permission('edit_profile', true);
+    
     // ファイルのバリデーション
     if ($_FILES['player_image']['error'] === UPLOAD_ERR_OK) {
         $file_tmp = $_FILES['player_image']['tmp_name'];
@@ -391,11 +394,13 @@ if ($error_message) {
             </div>
             
             <!-- 画像アップロードフォーム -->
+            <?php if (check_permission('edit_profile', false)): ?>
             <form method="POST" enctype="multipart/form-data" style="width:100%;">
                 <label style="display:block; margin-bottom:8px; font-weight:bold; color:#333; font-size:0.9em;">画像を変更</label>
                 <input type="file" name="player_image" accept="image/*" style="display:block; width:100%; margin-bottom:10px; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:0.9em;">
                 <button type="submit" class="btn" style="width:100%; background:#667eea; color:white; padding:12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; min-height:44px;">アップロード</button>
             </form>
+            <?php endif; ?>
         </div>
         
         <!-- 選手名・基本情報 -->
@@ -405,7 +410,7 @@ if ($error_message) {
             
             <div style="background:#f9f9f9; padding:15px; border-radius:8px; border-left:4px solid #667eea;">
                 <div style="font-size:0.95em; line-height:1.8;">
-                    <div style="margin-bottom:10px;"><span style="font-weight:bold; color:#666;">通算スコア:</span> <span style="font-size:1.2em; font-weight:bold; color:#667eea;"><?php echo $player_stats['total_score']; ?></span></div>
+                    <div style="margin-bottom:10px;"><span style="font-weight:bold; color:#666;">通算ポイント:</span> <span style="font-size:1.2em; font-weight:bold; color:#667eea;"><?php echo $player_stats['total_score']; ?></span></div>
                     <div style="margin-bottom:10px;"><span style="font-weight:bold; color:#666;">総試合数:</span> <span style="font-size:1.2em; font-weight:bold;"><?php echo $player_stats['total_games']; ?></span>戦</div>
                     <div><span style="font-weight:bold; color:#666;">一着率:</span> <span style="font-size:1.2em; font-weight:bold; color:#f093fb;"><?php echo $win_rate; ?>%</span></div>
                 </div>
@@ -429,7 +434,9 @@ if ($error_message) {
     <div style="background:#ffffff; border:2px solid #667eea; color:#333; padding:30px; border-radius:12px; margin-bottom:35px; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
             <h2 style="margin:0; color:#333;">自己紹介</h2>
+            <?php if (check_permission('edit_profile', false)): ?>
             <button id="edit-intro-btn" class="btn" style="background:#667eea; color:white; font-weight:bold; font-size:0.9em; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; min-height:44px; min-width:80px;">編集</button>
+            <?php endif; ?>
         </div>
         
         <!-- 表示モード -->
@@ -454,6 +461,7 @@ if ($error_message) {
         </div>
         
         <!-- 編集モード -->
+        <?php if (check_permission('edit_profile', false)): ?>
         <form id="intro-edit-form" style="display:none;" onsubmit="saveIntro(event)">
             <div style="margin-bottom:15px;">
                 <label style="display:block; font-weight:bold; margin-bottom:8px; color:#333;">自己紹介</label>
@@ -468,6 +476,7 @@ if ($error_message) {
                 <button type="button" class="btn" style="background:#e0e0e0; color:#333; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;" onclick="cancelEdit()">キャンセル</button>
             </div>
         </form>
+        <?php endif; ?>
     </div>
 
     <!-- 現在の公式戦順位カード -->
@@ -514,7 +523,7 @@ if ($error_message) {
         <div class="stat-card" data-stat="avg_final_score" style="background:#ffffff; padding:18px; border-radius:10px; display:flex; align-items:center; gap:18px; border-left:5px solid #fa709a; cursor:pointer; transition:all 0.3s; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
             <div style="font-size:2em;">💯</div>
             <div style="flex:1;">
-                <div style="font-size:0.9em; color:#666; margin-bottom:5px; font-weight:600;">平均点数</div>
+                <div style="font-size:0.9em; color:#666; margin-bottom:5px; font-weight:600;">平均素点</div>
                 <div style="font-size:2em; font-weight:bold; color:#333;"><?php echo $avg_final_score; ?></div>
             </div>
         </div>
@@ -528,7 +537,7 @@ if ($error_message) {
         <div class="stat-card" data-stat="best_final_score" style="background:#ffffff; padding:18px; border-radius:10px; display:flex; align-items:center; gap:18px; border-left:5px solid #f5576c; cursor:pointer; transition:all 0.3s; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
             <div style="font-size:2em;">⭐</div>
             <div style="flex:1;">
-                <div style="font-size:0.9em; color:#666; margin-bottom:5px; font-weight:600;">最高点数</div>
+                <div style="font-size:0.9em; color:#666; margin-bottom:5px; font-weight:600;">最高素点</div>
                 <div style="font-size:2em; font-weight:bold; color:#333;"><?php echo $best_final_score; ?></div>
             </div>
         </div>
@@ -556,7 +565,7 @@ if ($error_message) {
         <div class="stat-card" data-stat="total_score" style="background:#ffffff; padding:18px; border-radius:10px; display:flex; align-items:center; gap:18px; border-left:5px solid #3b82f6; cursor:pointer; transition:all 0.3s; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
             <div style="font-size:2em;">💰</div>
             <div style="flex:1;">
-                <div style="font-size:0.9em; color:#666; margin-bottom:5px; font-weight:600;">通算スコア</div>
+                <div style="font-size:0.9em; color:#666; margin-bottom:5px; font-weight:600;">通算ポイント</div>
                 <div style="font-size:2em; font-weight:bold; color:#333;"><?php echo $total_score; ?></div>
             </div>
         </div>
@@ -959,12 +968,12 @@ if ($error_message) {
                 'total_games': '試合数',
                 'wins': '一着数',
                 'win_rate': '一着率',
-                'avg_final_score': '平均点数',
-                'best_final_score': '最高点数',
+                'avg_final_score': '平均素点',
+                'best_final_score': '最高素点',
                 'avg_rank': '平均順位',
                 'top_rate': 'トップ率',
                 'last_avoidance_rate': 'ラス回避率',
-                'total_score': '通算スコア',
+                'total_score': '通算ポイント',
                 'last_place_count': '4位回数',
                 'max_consecutive_renzai': '最大連対数'
             };

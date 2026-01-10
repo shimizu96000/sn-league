@@ -2,25 +2,26 @@
 // データベース接続設定
 $dbname = 'mahjong_db';
 
-// ラズパイの場合は sn_league、XAMPP の場合は root で接続
-// ファイルパスでより確実に判定
+// ファイルパスで環境判定
 $file_path = realpath(__FILE__);
 if (strpos($file_path, 'xampp') !== false) {
-    // XAMPP ローカル環境
+    // Windows XAMPP用
     $username = 'root';
     $password = '';
     $host = 'localhost';
 } else {
-    // ラズパイ本番環境（Cloudflare トンネル経由も含む）
+    // ラズパイ本番用（ここをさっき作ったユーザーに合わせる）
     $username = 'sn_league';
-    $password = 'sn_league_pass_123';
-    $host = '127.0.0.1';  // 127.0.0.1 で接続
+    $password = 'sn-league-pass-123';
+    $host = '127.0.0.1'; 
 }
 
+// 接続文字列（TCP接続を強制）
+$dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+
 try {
-    // TCP で接続
     $pdo = new PDO(
-        "mysql:host=$host;port=3306;dbname=$dbname;charset=utf8mb4",
+        $dsn,
         $username,
         $password,
         [
@@ -30,8 +31,8 @@ try {
         ]
     );
 } catch (PDOException $e) {
-    // 接続失敗した場合
     header('Content-Type: text/plain; charset=UTF-8');
+    // エラーの詳細を表示
     exit('データベース接続失敗: ' . $e->getMessage());
 }
 ?>

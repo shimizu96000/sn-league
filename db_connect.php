@@ -18,18 +18,25 @@ if ($is_xampp) {
 // 接続先候補（順に試す）。コンテナ環境を考慮し host.docker.internal / Docker gateway も試す
 $socket_path = '/var/run/mysqld/mysqld.sock';
 $candidates = [];
+// コンテナ内かどうかを判定（.dockerenv が存在する一般的な方法）
+$in_container = file_exists('/.dockerenv') || getenv('IN_DOCKER') === '1';
+
 if (!$is_xampp) {
     if (file_exists($socket_path)) {
         $candidates[] = ['dsn' => "mysql:unix_socket={$socket_path};dbname={$dbname};charset=utf8mb4", 'mode' => 'socket'];
     }
-    // ループバック（コンテナ内の 127.0.0.1 はコンテナ自身なので通常失敗するが試す）
-    $candidates[] = ['dsn' => "mysql:host=127.0.0.1;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => '127.0.0.1'];
-    // ホスト名経由（localhost は socket を使う場合がある）
-    $candidates[] = ['dsn' => "mysql:host=localhost;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'localhost'];
-    // Docker for Mac/Windows の特別ホスト
-    $candidates[] = ['dsn' => "mysql:host=host.docker.internal;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'host.docker.internal'];
-    // Docker ブリッジのデフォルトゲートウェイ
-    $candidates[] = ['dsn' => "mysql:host=172.17.0.1;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'docker_gateway'];
+    if ($in_container) {
+        // コンテナ内ではホストの 127.0.0.1 はコンテナ自身なので、ホスト経由の接続候補を先に試す
+        $candidates[] = ['dsn' => "mysql:host=host.docker.internal;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'host.docker.internal'];
+        $candidates[] = ['dsn' => "mysql:host=172.17.0.1;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'docker_gateway'];
+        $candidates[] = ['dsn' => "mysql:host=127.0.0.1;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => '127.0.0.1'];
+        $candidates[] = ['dsn' => "mysql:host=localhost;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'localhost'];
+    } else {
+        // ホスト上での実行（例: ラズパイ本体）
+        $candidates[] = ['dsn' => "mysql:host=127.0.0.1;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => '127.0.0.1'];
+        $candidates[] = ['dsn' => "mysql:host=localhost;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'localhost'];
+        $candidates[] = ['dsn' => "mysql:host=172.17.0.1;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'docker_gateway'];
+    }
     // 実際の LAN IP（ラズパイのホストIP）
     $candidates[] = ['dsn' => "mysql:host=192.168.0.158;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'lan_ip'];
 } else {

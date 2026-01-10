@@ -3,13 +3,14 @@ require_once 'includes/init.php';
 $page_title = '選手プロフィール';
 $current_page = basename(__FILE__);
 
-// URLパラメータから選手名を取得
-if (!isset($_GET['name']) || empty($_GET['name'])) {
+// URLパラメータから選手名を取得（`name` または `player_name` を受け入れる）
+$raw_name = $_GET['name'] ?? $_GET['player_name'] ?? '';
+if (trim($raw_name) === '') {
     header('Location: players_list.php');
     exit;
 }
 
-$player_name = trim(urldecode($_GET['name']));
+$player_name = trim(rawurldecode($raw_name));
 
 // 試合タイプフィルター（デフォルト: official）
 $match_type_filter = $_GET['type'] ?? 'official';

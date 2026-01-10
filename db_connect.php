@@ -11,27 +11,31 @@ if ($is_xampp) {
     $password = '';
 } else {
     $username = 'sn_league';
-    // 既に作成済みのパスワードを使用（正確に合わせてください）
+    // 実際に作成したパスワード。必要ならここを更新してください。
     $password = 'sn-league-pass-123';
 }
 
-// 接続先候補（順に試す）
+// 接続先候補（順に試す）。コンテナ環境を考慮し host.docker.internal / Docker gateway も試す
 $socket_path = '/var/run/mysqld/mysqld.sock';
 $candidates = [];
 if (!$is_xampp) {
-    // 本番（ラズパイ）：優先は Unix socket（あれば）→127.0.0.1→実IP
     if (file_exists($socket_path)) {
         $candidates[] = ['dsn' => "mysql:unix_socket={$socket_path};dbname={$dbname};charset=utf8mb4", 'mode' => 'socket'];
     }
+    // ループバック（コンテナ内の 127.0.0.1 はコンテナ自身なので通常失敗するが試す）
     $candidates[] = ['dsn' => "mysql:host=127.0.0.1;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => '127.0.0.1'];
-    // 実IP（ローカルネットワーク）を追加しておく（必要なら変更）
+    // ホスト名経由（localhost は socket を使う場合がある）
+    $candidates[] = ['dsn' => "mysql:host=localhost;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'localhost'];
+    // Docker for Mac/Windows の特別ホスト
+    $candidates[] = ['dsn' => "mysql:host=host.docker.internal;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'host.docker.internal'];
+    // Docker ブリッジのデフォルトゲートウェイ
+    $candidates[] = ['dsn' => "mysql:host=172.17.0.1;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'docker_gateway'];
+    // 実際の LAN IP（ラズパイのホストIP）
     $candidates[] = ['dsn' => "mysql:host=192.168.0.158;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'lan_ip'];
 } else {
-    // XAMPP 環境
     $candidates[] = ['dsn' => "mysql:host=localhost;port=3306;dbname={$dbname};charset=utf8mb4", 'mode' => 'xampp_local'];
 }
 
-$log_file = sys_get_temp_dir() . '/sn_league_db_connect.log';
 $lastException = null;
 
 foreach ($candidates as $c) {
@@ -44,23 +48,22 @@ foreach ($candidates as $c) {
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_TIMEOUT => 5,
             ]
         );
-        // 成功した接続方法をログに残す
-        @file_put_contents($log_file, date('[Y-m-d H:i:s] ') . "DB connected via {$c['mode']}\n", FILE_APPEND);
+        // 成功した接続方法を Apache エラーログに残す
+        error_log("[sn_league] DB connected via {$c['mode']} (DSN: {$c['dsn']})");
         break;
     } catch (PDOException $e) {
         $lastException = $e;
-        @file_put_contents($log_file, date('[Y-m-d H:i:s] ') . "Failed {$c['mode']}: " . $e->getMessage() . "\n", FILE_APPEND);
-        // 次候補へ
+        error_log("[sn_league] Failed {$c['mode']}: " . $e->getMessage());
     }
 }
 
 if (!isset($pdo) || $pdo === null) {
     header('Content-Type: text/plain; charset=UTF-8');
-    // 最終的なエラーを出力（ログにも出す）
     $msg = $lastException ? $lastException->getMessage() : 'unknown error';
-    @file_put_contents($log_file, date('[Y-m-d H:i:s] ') . "Final failure: {$msg}\n", FILE_APPEND);
+    error_log("[sn_league] Final failure: {$msg}");
     exit('データベース接続失敗: ' . $msg);
 }
 

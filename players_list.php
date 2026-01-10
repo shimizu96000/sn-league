@@ -68,7 +68,7 @@ include 'includes/header.php';
     
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom:40px;">
         <?php foreach ($participants as $player): ?>
-            <a href="player_profile?name=<?php echo urlencode($player); ?>" style="display: flex; flex-direction: column; padding: 0; background: white; color: #333; text-decoration: none; border-radius: 12px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); cursor: pointer; overflow: hidden; border: 2px solid transparent;" onmouseover="this.style.boxShadow='0 8px 24px rgba(102, 126, 234, 0.3)'; this.style.transform='translateY(-4px)';" onmouseout="this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.1)'; this.style.transform='translateY(0)';">
+            <a href="player_profile.php?name=<?php echo urlencode($player); ?>" style="display: flex; flex-direction: column; padding: 0; background: white; color: #333; text-decoration: none; border-radius: 12px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); cursor: pointer; overflow: hidden; border: 2px solid transparent;" onmouseover="this.style.boxShadow='0 8px 24px rgba(102, 126, 234, 0.3)'; this.style.transform='translateY(-4px)';" onmouseout="this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.1)'; this.style.transform='translateY(0)';">
                 <!-- 画像 -->
                 <div style="width: 100%; padding-bottom: 100%; position: relative; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden; display: flex; align-items: center; justify-content: center;">
                     <?php if (isset($player_images[$player]) && file_exists($images_dir . '/' . $player_images[$player])): ?>

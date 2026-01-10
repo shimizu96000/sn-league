@@ -5,7 +5,7 @@ $current_page = basename(__FILE__);
 
 // URLパラメータから選手名を取得
 if (!isset($_GET['name']) || empty($_GET['name'])) {
-    header('Location: players_list');
+    header('Location: players_list.php');
     exit;
 }
 
@@ -363,14 +363,14 @@ if ($error_message) {
     echo '<div style="padding:20px; background:#fff5f5; border:1px solid #fc8181; border-radius:8px; margin:20px 0;">';
     echo '<h2 style="color:#c53030; margin-top:0;">エラー</h2>';
     echo '<p>' . htmlspecialchars($error_message) . '</p>';
-    echo '<a href="players_list" class="btn">選手一覧に戻る</a>';
+    echo '<a href="players_list.php" class="btn">選手一覧に戻る</a>';
     echo '</div>';
     include 'includes/footer.php';
     exit;
 }
 ?>
     <div style="margin-bottom:25px;">
-        <a href="players_list" style="color:#667eea; text-decoration:none; font-size:0.95em; display:inline-flex; align-items:center; gap:5px;">← 選手一覧に戻る</a>
+        <a href="players_list.php" style="color:#667eea; text-decoration:none; font-size:0.95em; display:inline-flex; align-items:center; gap:5px;">← 選手一覧に戻る</a>
     </div>
 
     <?php if (!empty($upload_message)): ?>
@@ -834,7 +834,7 @@ if ($error_message) {
     </div>
 
     <div style="margin-top:40px;">
-        <a href="players_list" class="btn">選手一覧に戻る</a>
+        <a href="players_list.php" class="btn">選手一覧に戻る</a>
     </div>
 
     <script>

@@ -66,8 +66,6 @@ foreach ($candidates as $c) {
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
                 PDO::ATTR_TIMEOUT => 5,
-                // MySQL接続が詰まって「Loading」が続くのを避ける（対応していない環境では無視される）
-                (defined('PDO::MYSQL_ATTR_CONNECT_TIMEOUT') ? PDO::MYSQL_ATTR_CONNECT_TIMEOUT : 1002) => 5,
             ]
         );
         // 成功した接続方法を Apache エラーログに残す

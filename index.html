@@ -2,9 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url=index.php">
     <title>SNリーグ</title>
 </head>
 <body>
-    <p>Loading...</p>
+    <script>
+        // Apache の DirectoryIndex で index.html が優先されてもアプリへ遷移できるようにする
+        window.location.replace('index.php');
+    </script>
+    <p>移動中です… <a href="index.php">こちら</a> をクリックしてください。</p>
 </body>
 </html>

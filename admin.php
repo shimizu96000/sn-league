@@ -1,4 +1,3 @@
-
 <?php
 // 管理画面（メンテナンスとメニュー公開設定）
 require_once 'includes/init.php';
